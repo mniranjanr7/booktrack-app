@@ -1,0 +1,31 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.env.*
+
+# Dependency caches
+pip-cache/
+*.egg-info/
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Editors / IDEs
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Tests & docs (not needed in runtime image)
+tests/
+docs/

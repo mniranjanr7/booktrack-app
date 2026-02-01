@@ -1,0 +1,21 @@
+{
+  "name": "artifact-management",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rm -rf build && mkdir build && cp public/index.html build/index.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mniranjanr7/artifact-management.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mniranjanr7/artifact-management/issues"
+  },
+  "homepage": "https://github.com/mniranjanr7/artifact-management#readme"
+}
