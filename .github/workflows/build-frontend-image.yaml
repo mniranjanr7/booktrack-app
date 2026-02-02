@@ -128,6 +128,7 @@ jobs:
             - name: Sign images with Cosign (keyless)
               env:
                   COSIGN_EXPERIMENTAL: "true"
+                  COSIGN_YES: "true"
               run: cosign sign ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
             # 🔍 VERIFY goes HERE
