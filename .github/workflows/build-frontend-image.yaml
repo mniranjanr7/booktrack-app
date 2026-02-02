@@ -1,4 +1,10 @@
 name: Build Frontend Image
+
+permissions:
+    contents: read
+    id-token: write
+    packages: write
+
 on:
     workflow_dispatch:
     push:
@@ -6,32 +12,116 @@ on:
             - main
         paths:
             - "frontend/**"
+
 env:
     REGISTRY: docker.io
-    IMAGE-NAME: mniranjanr7/booktrack-frontend
+    IMAGE_NAME: mniranjanr7/booktrack-frontend
 
 jobs:
-    build-and-push:
+    build-scan:
+        name: Build (single-arch) and Scan
         runs-on: ubuntu-latest
         steps:
-            - name: checkout repository
+            - name: Checkout
               uses: actions/checkout@v4
 
-            - name: Set up docker buildx
+            - name: Scan for secrets
+              uses: gitleaks/gitleaks-action@v2
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: npm
+                  cache-dependency-path: frontend/package-lock.json
+
+            - name: Install dependencies
+              run: |
+                  cd frontend
+                  npm ci
+
+            - name: Audit dependencies
+              run: |
+                  cd frontend
+                  npm audit --audit-level=high
+
+            - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
 
-            - name: Login to docker
+            - name: Login to Docker registry
               uses: docker/login-action@v3
               with:
                   username: ${{ secrets.DOCKER_USERNAME }}
                   password: ${{ secrets.DOCKER_PASSWORD }}
 
-            - name: Docker Build and Push image
+            - name: Build image (single-arch linux/amd64) and load locally for scanning
               uses: docker/build-push-action@v5
               with:
                   context: ./frontend
                   file: ./frontend/Dockerfile
+                  platforms: linux/amd64
+                  push: false
+                  load: true
+                  tags: |
+                      ${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+            - name: Scan image with Trivy
+              uses: aquasecurity/trivy-action@0.20.0
+              with:
+                  image-ref: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+                  format: table
+                  severity: HIGH,CRITICAL
+                  exit-code: 1
+
+            - name: Generate SBOM with Syft
+              uses: anchore/sbom-action@v0
+              with:
+                  image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+                  output-file: sbom.json
+
+            - name: Upload SBOM artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: sbom-${{ github.sha }}
+                  path: sbom.json
+
+    push-and-sign:
+        name: Build Multi-Platform, Push, and Sign
+        runs-on: ubuntu-latest
+        needs: build-scan
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Login to Docker registry
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKER_USERNAME }}
+                  password: ${{ secrets.DOCKER_PASSWORD }}
+
+            - name: Build and push multi-platform image with registry cache
+              uses: docker/build-push-action@v5
+              with:
+                  context: ./frontend
+                  file: ./frontend/Dockerfile
+                  platforms: linux/amd64,linux/arm64
                   push: true
                   tags: |
-                      ${{ env.IMAGE-NAME }}:${{ github.sha }}
-                      ${{ env.IMAGE-NAME }}:latest
+                      ${{ env.IMAGE_NAME }}:${{ github.sha }}
+                      ${{ env.IMAGE_NAME }}:latest
+                      ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+                  cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
+                  cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:cache,mode=max
+
+            - name: Verify pushed image exists
+              run: |
+                  echo "Image pushed: ${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
+            - name: Sign images with Cosign (keyless)
+              env:
+                  COSIGN_EXPERIMENTAL: "true"
+              run: |
+                  cosign sign ${{ env.IMAGE_NAME }}:${{ github.sha }}
