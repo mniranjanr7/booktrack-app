@@ -8,9 +8,15 @@ COPY . .
 RUN npm run build
 
 # --------RUN STAGE-----
-FROM nginx:1.25-alpine
+FROM nginx:1.27-alpine
 
+# Patch OS vulnerabilities
+RUN apk update && apk upgrade --no-cache
+
+# Remove default nginx config
 RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy nginx configs
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY default.conf /etc/nginx/conf.d/default.conf
 
