@@ -1,22 +1,21 @@
 name: Build Backend Image
-on
+on:
   push:
     branches:
       - main
     paths:
-      - 'backend/**'
+      - "backend/**"
 env:
-  REGISTRY:
-  IMAGE-NAME: 
+  REGISTRY: docker.io
+  IMAGE-NAME: mniranjanr7/booktrack-frontend
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     steps:
-
       - name: checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up docker buildx
         uses: docker/setup-buildx-action@v3
 
@@ -24,7 +23,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
-          passowrd: ${{ secrets.DOCKER_PASSWORD }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Docker Build and Push image
         uses: docker/build-push-action@v5
