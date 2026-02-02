@@ -7,7 +7,7 @@ on:
       - "backend/**"
 env:
   REGISTRY: docker.io
-  IMAGE-NAME: mniranjanr7/booktrack-frontend
+  IMAGE-NAME: mniranjanr7/booktrack-backend
 
 jobs:
   build-and-push:
