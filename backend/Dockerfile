@@ -7,7 +7,8 @@ WORKDIR /app
 # --no-install-recommends avoids installing unnecessary packages.
 # Cleans up package lists to keep the image small.
 
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrades pip to the latest version.
@@ -16,7 +17,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 # --no-cache-dir avoids caching downloads.
 # --no-deps ensures only the packages listed are built, not their dependencies (dependencies will be resolved later when installing from wheels).
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip wheel --no-cache-dir -r requirements.txt -w /wheels
+RUN pip install --upgrade pip \
+    && pip wheel --no-cache-dir -r requirements.txt -w /wheels
 
 # ---- RuntimeStage ----
 FROM python:3.11-slim AS RuntimeStage
@@ -28,8 +30,10 @@ WORKDIR /app
 
 # copy only build wheels
 COPY --from=BuildStage /wheels /wheels
+COPY --from=BuildStage  /app/requirements.txt .
 
-RUN pip install --no-cache-dir /wheels/* && rm -rf /wheels
+RUN pip install --no-cache-dir --no-index --find-links /wheels/ -r requirements.txt \
+    && rm -rf /wheels
 
 # copy application code
 COPY main.py .

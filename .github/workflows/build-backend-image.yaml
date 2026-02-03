@@ -12,7 +12,7 @@ env:
   IMAGE_NAME: mniranjanr7/booktrack-backend
 
 jobs:
-  build-and-push:
+  build-and-scan:
     runs-on: ubuntu-latest
     steps:
       - name: checkout repository
@@ -58,6 +58,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: false
+          load: true
           tags: |
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
@@ -69,12 +70,60 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: 1
 
-      - name: Docker Build and Push image
+      - name: Generate SBOM with SYFT
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{env.IMAGE_NAME}}:${{ github.sha }}
+          format: table
+          output-file: sbom-backend-image.txt
+
+  push-and-sign:
+    needs: build-and-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Docker Login Action
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Docker Build and Push image with multiplatform and registry cache
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           file: ./backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
             ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:cache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:cache,mode=max
+
+      - name: Verify pushed Images
+        run: docker images
+
+      - name: Sign images with cosign (keyless)
+        env:
+          COSIGN_YES: true
+          COSIGN_EXPERIMENTAL: "true"
+        run:
+          cosign sign docker.io/${{ env.IMAGE_NAME}}:${{github.sha}}
+          cosign sign --keyless docker.io/${{ env.IMAGE_NAME }}:latest
+
+          # 🔍 VERIFY goes HERE
+      - name: Cosign verify image
+        run: |
+          cosign verify docker.io/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          --certificate-identity-regexp github.com \
+          --certificate-oidc-issuer https://token.actions.githubusercontent.com
