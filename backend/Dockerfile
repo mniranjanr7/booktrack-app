@@ -39,7 +39,9 @@ RUN apt-get update \
 COPY --from=BuildStage /wheels /wheels
 COPY --from=BuildStage  /app/requirements.txt .
 
+# Offline Install
 RUN pip install --no-cache-dir --no-index --find-links /wheels/ -r requirements.txt \
+    && pip uninstall -y pip setuptools wheel \
     && rm -rf /wheels
 
 # copy application code
