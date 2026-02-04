@@ -8,7 +8,7 @@ WORKDIR /app
 # Cleans up package lists to keep the image small.
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential gcc libpq-dev \
+    && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrades pip to the latest version.
@@ -32,7 +32,7 @@ WORKDIR /app
 # Keep this minimal and explicit to avoid unexpected package installs. 
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libc6 \ 
+    && apt-get install -y --no-install-recommends \ 
     && rm -rf /var/lib/apt/lists/*
 
 # copy only build wheels
