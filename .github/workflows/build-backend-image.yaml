@@ -100,6 +100,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Docker Build and Push image with multiplatform and registry cache
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -119,7 +120,6 @@ jobs:
       - name: Sign images with cosign
         env:
           COSIGN_YES: true
-          COSIGN_EXPERIMENTAL: "true"
         run: |
           cosign sign docker.io/${{ env.IMAGE_NAME}}@${{ steps.build.outputs.digest }}
 
