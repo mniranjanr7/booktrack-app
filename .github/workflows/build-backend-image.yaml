@@ -1,4 +1,7 @@
 name: Build Backend Image
+permissions:
+    id-token: write
+    contents: read
 on:
   workflow_dispatch:
   push:
@@ -113,13 +116,13 @@ jobs:
       - name: Verify pushed Images
         run: docker images
 
-      - name: Sign images with cosign (keyless)
+      - name: Sign images with cosign
         env:
           COSIGN_YES: true
           COSIGN_EXPERIMENTAL: "true"
         run:
           cosign sign docker.io/${{ env.IMAGE_NAME}}:${{github.sha}}
-          cosign sign --keyless docker.io/${{ env.IMAGE_NAME }}:latest
+          cosign sign docker.io/${{ env.IMAGE_NAME }}:latest
 
           # 🔍 VERIFY goes HERE
       - name: Cosign verify image
