@@ -8,7 +8,7 @@ WORKDIR /app
 # Cleans up package lists to keep the image small.
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
+    && apt-get install -y --no-install-recommends build-essential libc6 gcc \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrades pip to the latest version.
