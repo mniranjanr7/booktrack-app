@@ -1,5 +1,5 @@
 # ---- BuildStage ----
-FROM python:3.11-slim AS BuildStage
+FROM python:3.11-alpine AS BuildStage
 
 WORKDIR /app
 
@@ -7,9 +7,12 @@ WORKDIR /app
 # --no-install-recommends avoids installing unnecessary packages.
 # Cleans up package lists to keep the image small.
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential libc6 gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Build dependencies only
+RUN apk add --no-cache \
+    build-base \
+    gcc \
+    musl-dev \
+    libffi-dev
 
 # Upgrades pip to the latest version.
 # Uses pip wheel to build wheels (precompiled Python packages) for everything listed in requirements.txt.
@@ -17,23 +20,23 @@ RUN apt-get update \
 # --no-cache-dir avoids caching downloads.
 # --no-deps ensures only the packages listed are built, not their dependencies (dependencies will be resolved later when installing from wheels).
 COPY requirements.txt .
+
 RUN pip install --upgrade pip \
     && pip wheel --no-cache-dir -r requirements.txt -w /wheels
 
 # ---- RuntimeStage ----
-FROM python:3.11-slim AS RuntimeStage
+FROM python:3.11-alpine AS RuntimeStage
 
 # create a non-root user
-RUN groupadd -r booktrackgrp && useradd -r -g booktrackgrp booktrackuser
+RUN addgroup -S booktrackgrp && adduser -S booktrackuser -G booktrackgrp
 
 WORKDIR /app    
 
 # Upgrade critical OS packages to pick up security fixes (glibc, libc6)
 # Keep this minimal and explicit to avoid unexpected package installs. 
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \ 
-    && rm -rf /var/lib/apt/lists/*
+# Runtime dependencies only
+RUN apk add --no-cache libpq
 
 # copy only build wheels
 COPY --from=BuildStage /wheels /wheels
@@ -41,7 +44,6 @@ COPY --from=BuildStage  /app/requirements.txt .
 
 # Offline Install
 RUN pip install --no-cache-dir --no-index --find-links /wheels/ -r requirements.txt \
-    && pip uninstall -y pip setuptools wheel \
     && rm -rf /wheels
 
 # copy application code
