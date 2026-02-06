@@ -27,23 +27,29 @@ async def lifespan(app: FastAPI):
 # 3. Initialize FastAPI with Lifespan
 app = FastAPI(title="BookTrack API", lifespan=lifespan)
 
+# Liveness Probe
 @app.get("/healthz")
-async def healthz():
+def healthz():
     """
     Liveness probe.
     Only checks that the app process is running.
     """
     return {"status": "ok"}
 
+# Readiness Probe
+
 @app.get("/readyz")
 async def readyz():
+    if not hasattr(app.state, "pool"):
+        raise HTTPException(status_code=503, detail="Pool not initialized")
+    
     try:
         async with app.state.pool.connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute("SELECT 1;")
         return {"status": "ready"}
     except Exception as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        raise HTTPException(status_code=503, detail="Database not ready")
 
 @app.get("/books")
 async def list_books():
@@ -54,4 +60,4 @@ async def list_books():
                 rows = await cur.fetchall()
                 return [{"id": r[0], "title": r[1]} for r in rows]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str)
+        raise HTTPException(status_code=500, detail="Failed to fetch books")
