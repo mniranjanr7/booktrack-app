@@ -18,8 +18,10 @@ DB_CONN_STR = (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Initialize the pool
+    app.state.is_loaded = False
     app.state.pool = AsyncConnectionPool(conninfo=DB_CONN_STR, min_size=1, max_size=5, open=True)
     # await app.async_pool.open()
+    app.state.is_loaded = True
     yield
     # Shutdown: Gracefully close the pool
     await app.state.pool.close()
@@ -68,12 +70,6 @@ async def startup():
     """
     Checks if the application initialization is complete.
     """
-    # 1. Check if the DB pool is created (but maybe don't run a query yet)
-    if not hasattr(app.state, "pool"):
-         raise HTTPException(status_code=503, detail="Initializing...")
-    
-    # 2. Check if massive config/models are loaded
-    if not app.state.is_loaded:
-         raise HTTPException(status_code=503, detail="Loading models...")
-
+    if not getattr(app.state, "is_loaded", False):
+        raise HTTPException(status_code=503, detail="Initializing")
     return {"status": "started"}
