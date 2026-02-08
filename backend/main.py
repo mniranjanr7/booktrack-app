@@ -61,3 +61,19 @@ async def list_books():
                 return [{"id": r[0], "title": r[1]} for r in rows]
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch books")
+    
+# Startup Probe
+@app.get("/startup")
+async def startup():
+    """
+    Checks if the application initialization is complete.
+    """
+    # 1. Check if the DB pool is created (but maybe don't run a query yet)
+    if not hasattr(app.state, "pool"):
+         raise HTTPException(status_code=503, detail="Initializing...")
+    
+    # 2. Check if massive config/models are loaded
+    if not app.state.is_loaded:
+         raise HTTPException(status_code=503, detail="Loading models...")
+
+    return {"status": "started"}
