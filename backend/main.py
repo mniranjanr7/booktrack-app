@@ -58,9 +58,9 @@ async def list_books():
     try:
         async with app.state.pool.connection() as conn:
             async with conn.cursor() as cur:
-                await cur.execute("SELECT id, title FROM books;")
+                await cur.execute("SELECT title, id FROM books;")
                 rows = await cur.fetchall()
-                return [{"id": r[0], "title": r[1]} for r in rows]
+                return [{"title": r[1], "id": r[0]} for r in rows]
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to fetch books")
     
